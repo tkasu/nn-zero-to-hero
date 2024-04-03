@@ -12,6 +12,10 @@ https://www.youtube.com/playlist?list=PLAqhIrjkxbuWI23v9cThsA9GvCAUhRvKZ
 
 `poetry install`
 
+## Formatting
+
+`poetry run black notebooks/`
+
 ## Clean notebook output before commit
 
 `poetry run nbstripout notebooks/*.ipynb`

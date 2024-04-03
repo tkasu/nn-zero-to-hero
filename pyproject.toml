@@ -16,6 +16,7 @@ numpy = "^1.26.4"
 ipykernel = "^6.29.4"
 notebook = "^7.1.2"
 nbstripout = "^0.7.1"
+black = {extras = ["jupyter"], version = "^24.3.0"}
 
 [build-system]
 requires = ["poetry-core"]
