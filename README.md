@@ -14,8 +14,8 @@ https://www.youtube.com/playlist?list=PLAqhIrjkxbuWI23v9cThsA9GvCAUhRvKZ
 
 ## Formatting
 
-`poetry run black notebooks/`
+`poetry run black .`
 
 ## Clean notebook output before commit
 
-`poetry run nbstripout notebooks/*.ipynb`
+`poetry run nbstripout nn_zero_to_hero/notebooks/*.ipynb`
