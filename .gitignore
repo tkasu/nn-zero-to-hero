@@ -160,3 +160,4 @@ cython_debug/
 #.idea/
 
 optuna_db/*.sqlite3
+lightning_logs/

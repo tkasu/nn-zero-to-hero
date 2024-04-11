@@ -57,7 +57,6 @@ model = torch.compile(
     ).to(DEVICE)
 )
 
-batches_by_epoch = len(train_dataset) // BATCH_SIZE
 optimizer = torch.optim.SGD(model.parameters(), lr=LR, momentum=MOMENTUM)
 
 stats_df = train_model_simple(
