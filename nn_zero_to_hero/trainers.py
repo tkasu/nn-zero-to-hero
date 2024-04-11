@@ -32,6 +32,7 @@ def train_model_simple(
 
     for epoch in tqdm(range(epochs), leave=False):
         epoch_loss_sum = 0.0
+        epoch_batch_count = 0
 
         # Load data in bigger chunks to speed up training
         for X_batch_dl, Y_batch_dl in dataloader:
@@ -43,6 +44,8 @@ def train_model_simple(
             Y_batches = torch.split(Y_batch_dl, batch_size)
 
             for X_batch, Y_batch in zip(X_batches, Y_batches):
+                epoch_batch_count += 1
+
                 logits = model.forward(X_batch)
                 loss = F.cross_entropy(logits, Y_batch)
                 epoch_loss_sum += loss.item()
@@ -54,10 +57,11 @@ def train_model_simple(
         # track stats
         # TODO: Add validation loss
         stepi.append(epoch)
-        average_loss = epoch_loss_sum / (epoch + 1)
+        average_loss = epoch_loss_sum / epoch_batch_count
         lossi.append(average_loss)
         if trial:
             trial.report(average_loss, step=epoch)
+        print(f"Epoch {epoch} - Average training loss: {average_loss:.4f}")
 
     stats_df = pd.DataFrame({"step": stepi, "loss": lossi})
     return stats_df
