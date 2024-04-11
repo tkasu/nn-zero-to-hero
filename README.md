@@ -19,3 +19,18 @@ https://www.youtube.com/playlist?list=PLAqhIrjkxbuWI23v9cThsA9GvCAUhRvKZ
 ## Clean notebook output before commit
 
 `poetry run nbstripout nn_zero_to_hero/notebooks/*.ipynb`
+
+## Sections
+
+### Makemore part 2: MLP
+
+Inital template based on this video from Andrej: https://www.youtube.com/watch?v=TCH_1BHY58I
+
+#### Refactored notebook
+
+See `nn_zero_to_hero/notebooks/makemore_part2_mlp.ipynb`
+
+#### Hyperparameter tuning
+
+1. Alter the configuration in nn_zero_to_hero/makemore_part2_mlp_hyperparameter_tuning
+2. `poetry run python -m nn_zero_to_hero.makemore_part2_mlp_hyperparameter_tuning`
