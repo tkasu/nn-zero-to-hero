@@ -19,7 +19,7 @@ def sample_from_model(
     block_size: int,
     device: torch.device,
     itos: Dict[int, str],
-    generator: torch.Generator
+    generator: torch.Generator,
 ) -> str:
     model.eval()
     out = []
