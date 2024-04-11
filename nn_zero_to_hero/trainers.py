@@ -17,11 +17,14 @@ def train_model_simple(
     batch_size: int,
     device: Optional[torch.device] = None,
     trial: Optional[optuna.Trial] = None,
+    pin_memory: bool = False,
+    prefetch_factor: int = 10,
 ) -> Tuple[List[int], List[float]]:
     model.train()
 
+    dataloader_batch_size = batch_size * prefetch_factor
     dataloader = DataLoader(
-        dataset, batch_size=batch_size, shuffle=True, pin_memory=True
+        dataset, batch_size=dataloader_batch_size, shuffle=True, pin_memory=pin_memory
     )
 
     lossi = []
@@ -29,19 +32,24 @@ def train_model_simple(
 
     for epoch in tqdm(range(epochs), leave=False):
         epoch_loss_sum = 0.0
-        for X_batch, Y_batch in dataloader:
 
+        # Load data in bigger chunks to speed up training
+        for X_batch_dl, Y_batch_dl in dataloader:
             if device:
-                X_batch = X_batch.to(device)
-                Y_batch = Y_batch.to(device)
+                X_batch_dl = X_batch_dl.to(device, non_blocking=pin_memory)
+                Y_batch_dl = Y_batch_dl.to(device, non_blocking=pin_memory)
 
-            logits = model.forward(X_batch)
-            loss = F.cross_entropy(logits, Y_batch)
-            epoch_loss_sum += loss.item()
+            X_batches = torch.split(X_batch_dl, batch_size)
+            Y_batches = torch.split(Y_batch_dl, batch_size)
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+            for X_batch, Y_batch in zip(X_batches, Y_batches):
+                logits = model.forward(X_batch)
+                loss = F.cross_entropy(logits, Y_batch)
+                epoch_loss_sum += loss.item()
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
 
         # track stats
         # TODO: Add validation loss

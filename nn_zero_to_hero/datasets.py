@@ -1,13 +1,17 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import torch
 from torch.utils.data import Dataset
 
-from nn_zero_to_hero.tokens import tokens_to_int_mapping
-
 
 class WordTokensDataset(Dataset):
-    def __init__(self, words: List[str], block_size: int, stoi: Dict[str, int]):
+    def __init__(
+        self,
+        words: List[str],
+        block_size: int,
+        stoi: Dict[str, int],
+        preload_to_device: Optional[torch.device] = None,
+    ):
         X, Y = [], []
 
         for w in words:
@@ -21,6 +25,9 @@ class WordTokensDataset(Dataset):
 
         X = torch.tensor(X)
         Y = torch.tensor(Y)
+        if preload_to_device:
+            X = X.to(preload_to_device)
+            Y = Y.to(preload_to_device)
 
         self.X = X
         self.Y = Y
