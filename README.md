@@ -38,3 +38,8 @@ See `nn_zero_to_hero/notebooks/makemore_part2_mlp.ipynb`
 #### Native Pytorch with nn-module
 
 `poetry run python -m nn_zero_to_hero.makemore_part2_mlp_native`
+
+#### Pytorch Lightning version
+
+1. `poetry run python -m nn_zero_to_hero.makemore_part2_mlp_lightning`
+2. Inspect with Tensorboard `tensorboard --logdir db_log`

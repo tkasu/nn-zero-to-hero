@@ -3,6 +3,8 @@ import torch
 import torch.nn.functional as F
 import lightning as L
 from torch.utils.data import DataLoader
+from lightning.pytorch.loggers import TensorBoardLogger
+from lightning.pytorch.profilers import PyTorchProfiler
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 
 from nn_zero_to_hero.datasets import WordTokensDataset
@@ -47,10 +49,20 @@ model = WordTokenModelL(
     hidden_layer_size=100,
 )
 
+
+l_logger = TensorBoardLogger("db_logs", name="makemore_part2_mlp_lightning")
+pytorch_profiler = PyTorchProfiler(
+    on_trace_ready=torch.profiler.tensorboard_trace_handler(l_logger.log_dir),
+    schedule=torch.profiler.schedule(wait=1, warmup=1, active=20),
+)
+
 trainer = L.Trainer(
     max_epochs=EPOCHS,
     accelerator="gpu",
     callbacks=[EarlyStopping(monitor="val_loss", verbose=True, min_delta=0.001)],
+    logger=l_logger,
+    # Throws segmentation fault from time to time
+    # profiler=pytorch_profiler,
 )
 trainer.fit(model, train_dataloader, validation_dataloader)
 

@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import lightning as L
-from schedulefree import SGDScheduleFree
+from schedulefree import SGDScheduleFree, AdamWScheduleFree
 
 
 class WordTokenModel(nn.Module):
@@ -76,6 +76,7 @@ class WordTokenModelL(L.LightningModule):
         X, Y = batch
         logits = self.forward(X)
         loss = self.loss_func(logits, Y)
+        self.log("train_loss", loss)
         return loss
 
     def validation_step(self, batch: torch.Tensor, batch_idx: int):
