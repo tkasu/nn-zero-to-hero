@@ -45,8 +45,8 @@ test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset))
 model = WordTokenModelL(
     token_count=len(STOI),
     block_size=BLOCK_SIZE,
-    embedding_layer_size=5,
-    hidden_layer_size=100,
+    embedding_layer_size=10,
+    hidden_layer_size=200,
 )
 
 

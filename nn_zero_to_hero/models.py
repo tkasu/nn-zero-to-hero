@@ -97,5 +97,6 @@ class WordTokenModelL(L.LightningModule):
         return self.model(batch)
 
     def configure_optimizers(self):
-        optimizer = SGDScheduleFree(self.model.parameters(), lr=1.0)
+        optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1)
+        # optimizer = SGDScheduleFree(self.model.parameters(), lr=1.0)
         return optimizer
