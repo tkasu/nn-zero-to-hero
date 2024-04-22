@@ -46,6 +46,7 @@ model = WordTokenModelL(
     block_size=BLOCK_SIZE,
     embedding_layer_size=10,
     hidden_layer_size=200,
+    hidden_layer_count=5,
 )
 
 

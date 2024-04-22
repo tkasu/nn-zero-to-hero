@@ -1,9 +1,11 @@
+import itertools
 from typing import Optional
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import lightning as L
+import matplotlib.pyplot as plt
 from schedulefree import SGDScheduleFree, AdamWScheduleFree
 
 
@@ -58,8 +60,21 @@ class WordTokenModelL(L.LightningModule):
         block_size: int,
         embedding_layer_size: int,
         hidden_layer_size: int,
+        hidden_layer_count: int = 1,
+        optimize: bool = True,
     ):
         super().__init__()
+        assert hidden_layer_count > 0, "hidden_layer_count should be greater than 0"
+
+        extra_hidden_layers = list(
+            itertools.chain(
+                *[
+                    (nn.Linear(hidden_layer_size, hidden_layer_size), nn.Tanh())
+                    for _ in range(1, hidden_layer_count)
+                ]
+            )
+        )
+
         model = nn.Sequential(
             nn.Embedding(
                 embedding_dim=embedding_layer_size, num_embeddings=token_count
@@ -67,9 +82,13 @@ class WordTokenModelL(L.LightningModule):
             nn.Flatten(),
             nn.Linear(embedding_layer_size * block_size, hidden_layer_size),
             nn.Tanh(),
+            *extra_hidden_layers,
             nn.Linear(hidden_layer_size, token_count),
         )
-        self.model = torch.compile(model, mode="reduce-overhead")
+        self.optimized_model = optimize
+        if self.optimized_model:
+            model = torch.compile(model, mode="reduce-overhead")
+        self.model = model
         self.loss_func = F.cross_entropy
 
     def training_step(self, batch: torch.Tensor, batch_idx: int):
@@ -100,3 +119,24 @@ class WordTokenModelL(L.LightningModule):
         optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1)
         # optimizer = SGDScheduleFree(self.model.parameters(), lr=1.0)
         return optimizer
+
+    def _save_param_dist_plot(self):
+        legends = []
+        fig = plt.figure()
+        for name, params in self.model.named_parameters():
+            if "weigh" in name:
+                legends.append(name)
+                plt.hist(
+                    params.view(-1).cpu().tolist(), 50, histtype="step", label=name
+                )
+        plt.legend(
+            legends, loc="upper left"
+        )  # TODO: Some bug that tensorboard is not rendering the legend
+        plt.title("Weights distribution")
+        self.logger.experiment.add_figure(
+            "weights_dist", fig, global_step=self.global_step
+        )
+
+    def on_train_epoch_end(self) -> None:
+        if self.current_epoch % 10 == 0:
+            self._save_param_dist_plot()
