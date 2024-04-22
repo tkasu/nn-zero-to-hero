@@ -1,4 +1,5 @@
 import itertools
+from collections import defaultdict
 from typing import Optional
 
 import torch
@@ -61,10 +62,14 @@ class WordTokenModelL(L.LightningModule):
         embedding_layer_size: int,
         hidden_layer_size: int,
         hidden_layer_count: int = 1,
+        lr: float = 0.1,
         optimize: bool = True,
     ):
         super().__init__()
         assert hidden_layer_count > 0, "hidden_layer_count should be greater than 0"
+        self.lr = lr
+        self.prev_epoch = None
+        self.update_to_data_ratios = defaultdict(list)
 
         extra_hidden_layers = list(
             itertools.chain(
@@ -116,8 +121,8 @@ class WordTokenModelL(L.LightningModule):
         return self.model(batch)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1)
-        # optimizer = SGDScheduleFree(self.model.parameters(), lr=1.0)
+        optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
+        # optimizer = SGDScheduleFree(self.model.parameters(), lr=self.lr)
         return optimizer
 
     def _save_param_dist_plot(self):
@@ -125,18 +130,56 @@ class WordTokenModelL(L.LightningModule):
         fig = plt.figure()
         for name, params in self.model.named_parameters():
             if "weigh" in name:
-                legends.append(name)
-                plt.hist(
-                    params.view(-1).cpu().tolist(), 50, histtype="step", label=name
-                )
-        plt.legend(
-            legends, loc="upper left"
-        )  # TODO: Some bug that tensorboard is not rendering the legend
+                legends.append(f"weights - {name}")
+                plt.hist(params.view(-1).cpu().tolist(), 50, histtype="step")
+        plt.legend(legends, loc="upper left", fontsize="x-small")
         plt.title("Weights distribution")
         self.logger.experiment.add_figure(
             "weights_dist", fig, global_step=self.global_step
         )
 
+    def _save_grad_dist_plot(self):
+        legends = []
+        fig = plt.figure()
+        for name, params in self.model.named_parameters():
+            if "weigh" in name:
+                legends.append(f"grads - {name}")
+                plt.hist(params.grad.view(-1).cpu().tolist(), 50, histtype="step")
+        plt.legend(legends, loc="upper left", fontsize="x-small")
+        plt.title("Grad distribution")
+        self.logger.experiment.add_figure(
+            "grad_dist", fig, global_step=self.global_step
+        )
+
+    def _save_update_data_ratio_plot(self):
+        legends = []
+        fig = plt.figure()
+        for name, ratios in self.update_to_data_ratios.items():
+            legends.append(f"ratio - {name}")
+            plt.plot(ratios)
+        plt.legend(legends, loc="lower right", fontsize="x-small")
+        self.logger.experiment.add_figure(
+            "update_to_data_ratio_by_step", fig, global_step=self.global_step
+        )
+
+    def _update_ud_ratio(self):
+        for name, params in self.model.named_parameters():
+            if "weigh" in name:
+                self.update_to_data_ratios[name].append(
+                    ((params.grad * self.lr).std() / params.data.std()).log10().item()
+                )
+
+    def on_before_optimizer_step(self, _optimizer):
+        self._update_ud_ratio()
+
+        if self.current_epoch != self.prev_epoch:
+            self.prev_epoch = self.current_epoch
+            if self.current_epoch % 10 == 0:
+                self._save_grad_dist_plot()
+
     def on_train_epoch_end(self) -> None:
         if self.current_epoch % 10 == 0:
             self._save_param_dist_plot()
+
+    def on_train_end(self) -> None:
+        self._save_update_data_ratio_plot()
