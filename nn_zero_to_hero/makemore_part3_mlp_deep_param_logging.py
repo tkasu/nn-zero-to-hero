@@ -1,4 +1,6 @@
 import random
+
+import click
 import torch
 import torch.nn.functional as F
 import lightning as L
@@ -21,61 +23,70 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 EPOCHS = 100
 LOSS_FUNC = F.cross_entropy
 
-words = open("data/names.txt", "r").read().splitlines()
-chars = sorted(list(set("".join(words))))
-STOI, ITOS = tokens_to_int_mapping(chars)
 
-random.shuffle(words)
-n1 = int(0.8 * len(words))
-n2 = int(0.9 * len(words))
+@click.command()
+@click.option("--use-batch-norm", is_flag=True)
+def train(use_batch_norm: bool):
+    words = open("data/names.txt", "r").read().splitlines()
+    chars = sorted(list(set("".join(words))))
+    STOI, ITOS = tokens_to_int_mapping(chars)
 
-train_dataset = WordTokensDataset(words[:n1], BLOCK_SIZE, STOI)
-validation_dataset = WordTokensDataset(words[n1:n2], BLOCK_SIZE, STOI)
-test_dataset = WordTokensDataset(words[n2:], BLOCK_SIZE, STOI)
+    random.shuffle(words)
+    n1 = int(0.8 * len(words))
+    n2 = int(0.9 * len(words))
 
-train_dataloader = DataLoader(
-    train_dataset, batch_size=BATCH_SIZE, pin_memory=True, num_workers=4
-)
-validation_dataloader = DataLoader(
-    validation_dataset, batch_size=len(validation_dataset), num_workers=4
-)
-test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset))
+    train_dataset = WordTokensDataset(words[:n1], BLOCK_SIZE, STOI)
+    validation_dataset = WordTokensDataset(words[n1:n2], BLOCK_SIZE, STOI)
+    test_dataset = WordTokensDataset(words[n2:], BLOCK_SIZE, STOI)
 
-model = WordTokenModelL(
-    token_count=len(STOI),
-    block_size=BLOCK_SIZE,
-    embedding_layer_size=10,
-    hidden_layer_size=200,
-    hidden_layer_count=5,
-)
-
-
-l_logger = TensorBoardLogger("db_logs", name="makemore_part2_mlp_lightning")
-pytorch_profiler = PyTorchProfiler(
-    on_trace_ready=torch.profiler.tensorboard_trace_handler(l_logger.log_dir),
-    schedule=torch.profiler.schedule(wait=1, warmup=1, active=20),
-)
-
-trainer = L.Trainer(
-    max_epochs=EPOCHS,
-    accelerator="gpu",
-    callbacks=[EarlyStopping(monitor="val_loss", verbose=True, min_delta=0.001)],
-    logger=l_logger,
-    # Throws segmentation fault from time to time
-    # profiler=pytorch_profiler,
-)
-trainer.fit(model, train_dataloader, validation_dataloader)
-
-trainer.test(model, dataloaders=test_dataloader)
-
-print("Samples from the model:")
-g = torch.Generator().manual_seed(2147483647 + 10)
-for _ in range(10):
-    s = sample_from_model(
-        model.cpu(),
-        block_size=BLOCK_SIZE,
-        itos=ITOS,
-        device=torch.device("cpu"),
-        generator=g,
+    train_dataloader = DataLoader(
+        train_dataset, batch_size=BATCH_SIZE, pin_memory=True, num_workers=4
     )
-    print(s)
+    validation_dataloader = DataLoader(
+        validation_dataset, batch_size=len(validation_dataset), num_workers=4
+    )
+    test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset))
+
+    model = WordTokenModelL(
+        token_count=len(STOI),
+        block_size=BLOCK_SIZE,
+        embedding_layer_size=10,
+        hidden_layer_size=200,
+        hidden_layer_count=5,
+        use_batch_norm=use_batch_norm,
+    )
+    print(model)
+
+    l_logger = TensorBoardLogger("db_logs", name="makemore_part2_mlp_lightning")
+    pytorch_profiler = PyTorchProfiler(
+        on_trace_ready=torch.profiler.tensorboard_trace_handler(l_logger.log_dir),
+        schedule=torch.profiler.schedule(wait=1, warmup=1, active=20),
+    )
+
+    trainer = L.Trainer(
+        max_epochs=EPOCHS,
+        accelerator="gpu",
+        callbacks=[EarlyStopping(monitor="val_loss", verbose=True, min_delta=0.001)],
+        logger=l_logger,
+        # Throws segmentation fault from time to time
+        # profiler=pytorch_profiler,
+    )
+    trainer.fit(model, train_dataloader, validation_dataloader)
+
+    trainer.test(model, dataloaders=test_dataloader)
+
+    print("Samples from the model:")
+    g = torch.Generator().manual_seed(2147483647 + 10)
+    for _ in range(10):
+        s = sample_from_model(
+            model.cpu(),
+            block_size=BLOCK_SIZE,
+            itos=ITOS,
+            device=torch.device("cpu"),
+            generator=g,
+        )
+        print(s)
+
+
+if __name__ == "__main__":
+    train()

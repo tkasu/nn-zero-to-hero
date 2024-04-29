@@ -62,6 +62,7 @@ class WordTokenModelL(L.LightningModule):
         embedding_layer_size: int,
         hidden_layer_size: int,
         hidden_layer_count: int = 1,
+        use_batch_norm: bool = False,
         lr: float = 0.1,
         optimize: bool = True,
     ):
@@ -74,7 +75,19 @@ class WordTokenModelL(L.LightningModule):
         extra_hidden_layers = list(
             itertools.chain(
                 *[
-                    (nn.Linear(hidden_layer_size, hidden_layer_size), nn.Tanh())
+                    (
+                        layer
+                        for layer in (
+                            nn.Linear(hidden_layer_size, hidden_layer_size),
+                            (
+                                nn.BatchNorm1d(hidden_layer_size)
+                                if use_batch_norm
+                                else None
+                            ),
+                            nn.Tanh(),
+                        )
+                        if layer is not None
+                    )
                     for _ in range(1, hidden_layer_count)
                 ]
             )
