@@ -8,7 +8,7 @@ from lightning.pytorch.profilers import PyTorchProfiler
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 
 from nn_zero_to_hero.datasets import WordTokensDataset
-from nn_zero_to_hero.models import WordTokenModelL
+from nn_zero_to_hero.models import build_word_token_mlp_model
 from nn_zero_to_hero.tokens import sample_from_model, tokens_to_int_mapping
 
 torch.set_float32_matmul_precision("high")  # Use TensorFloat32
@@ -41,7 +41,7 @@ validation_dataloader = DataLoader(
 )
 test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset))
 
-model = WordTokenModelL(
+model = build_word_token_mlp_model(
     token_count=len(STOI),
     block_size=BLOCK_SIZE,
     embedding_layer_size=10,

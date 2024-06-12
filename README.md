@@ -42,10 +42,15 @@ See `nn_zero_to_hero/notebooks/makemore_part2_mlp.ipynb`
 #### Pytorch Lightning version
 
 1. `poetry run python -m nn_zero_to_hero.makemore_part2_mlp_lightning`
-2. Inspect with Tensorboard `tensorboard --logdir db_log`
+2. Inspect with Tensorboard `tensorboard --logdir db_logs`
 
 ### Makemore part 3: MLP with Activation and Gradient analysis, with or without batch norm
 
-1. `poetry run python -m nn_zero_to_hero.nn_zero_to_hero.makemore_part3_mlp_deep_param_logging --use-batch-norm`
-2. Inspect with Tensorboard `tensorboard --logdir db_log`
+1. `poetry run python -m nn_zero_to_hero.makemore_part3_mlp_deep_param_logging --use-batch-norm`
+2. Inspect with Tensorboard `tensorboard --logdir db_logs`
     1. See `Images` for parameter distribution logging
+
+### Makemore part 5: Wavenet like MLP
+
+1. `poetry run python -m nn_zero_to_hero.nn_zero_to_hero.makemore_part5_wave`
+2. Inspect with Tensorboard `tensorboard --logdir db_logs`

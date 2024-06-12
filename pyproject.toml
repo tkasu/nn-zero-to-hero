@@ -7,17 +7,17 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.11"
-torch = "^2.2.2"
-matplotlib = "^3.8.3"
-numpy = "^1.26.4"
-tqdm = "^4.66.2"
-optuna = "^3.6.1"
-pandas = "^2.2.2"
-lightning = "^2.2.1"
-schedulefree = "^1.2.1"
-tensorboard = "^2.16.2"
-torch-tb-profiler = "^0.4.3"
-click = "^8.1.7"
+torch = "*"
+matplotlib = "*"
+numpy = "*"
+tqdm = "*"
+optuna = "*"
+pandas = "*"
+lightning = "*"
+schedulefree = "*"
+tensorboard = "*"
+torch-tb-profiler = "*"
+click = "*"
 
 
 [tool.poetry.group.dev.dependencies]

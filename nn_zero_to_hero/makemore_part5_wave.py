@@ -10,14 +10,14 @@ from lightning.pytorch.profilers import PyTorchProfiler
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 
 from nn_zero_to_hero.datasets import WordTokensDataset
-from nn_zero_to_hero.models import build_word_token_mlp_model
+from nn_zero_to_hero.models import build_word_token_wave_model
 from nn_zero_to_hero.tokens import sample_from_model, tokens_to_int_mapping
 
 torch.set_float32_matmul_precision("high")  # Use TensorFloat32
 torch.backends.cuda.matmul.allow_tf32 = True
 
 BATCH_SIZE = 512
-BLOCK_SIZE = 3
+BLOCK_SIZE = 8
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # DEVICE = torch.device("cpu")
 EPOCHS = 100
@@ -47,29 +47,20 @@ def train(use_batch_norm: bool):
     )
     test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset))
 
-    model = build_word_token_mlp_model(
+    model = build_word_token_wave_model(
         token_count=len(STOI),
-        block_size=BLOCK_SIZE,
-        embedding_layer_size=10,
-        hidden_layer_size=200,
-        hidden_layer_count=5,
-        use_batch_norm=use_batch_norm,
+        embedding_layer_size=24,
+        hidden_layer_size=128,
     )
     print(model)
 
     l_logger = TensorBoardLogger("db_logs", name="makemore_part2_mlp_lightning")
-    pytorch_profiler = PyTorchProfiler(
-        on_trace_ready=torch.profiler.tensorboard_trace_handler(l_logger.log_dir),
-        schedule=torch.profiler.schedule(wait=1, warmup=1, active=20),
-    )
 
     trainer = L.Trainer(
         max_epochs=EPOCHS,
         accelerator="gpu",
-        callbacks=[EarlyStopping(monitor="val_loss", verbose=True, min_delta=0.001)],
+        callbacks=[EarlyStopping(monitor="val_loss", verbose=True, min_delta=0.0005)],
         logger=l_logger,
-        # Throws segmentation fault from time to time
-        # profiler=pytorch_profiler,
     )
     trainer.fit(model, train_dataloader, validation_dataloader)
 

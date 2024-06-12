@@ -1,13 +1,18 @@
 import itertools
 from collections import defaultdict
-from typing import Optional
+from typing import List, Optional
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import lightning as L
+import matplotlib
 import matplotlib.pyplot as plt
 from schedulefree import SGDScheduleFree, AdamWScheduleFree
+
+from nn_zero_to_hero.layers import FlattenConsecutive, Permute, ShapePrinter
+
+matplotlib.use("Agg")
 
 
 class WordTokenModel(nn.Module):
@@ -54,55 +59,20 @@ class WordTokenModel(nn.Module):
         return logits
 
 
-class WordTokenModelL(L.LightningModule):
+class SequentialL(L.LightningModule):
     def __init__(
         self,
-        token_count: int,
-        block_size: int,
-        embedding_layer_size: int,
-        hidden_layer_size: int,
-        hidden_layer_count: int = 1,
-        use_batch_norm: bool = False,
+        layers: List[nn.Module],
         lr: float = 0.1,
         optimize: bool = True,
     ):
         super().__init__()
-        assert hidden_layer_count > 0, "hidden_layer_count should be greater than 0"
+
         self.lr = lr
         self.prev_epoch = None
         self.update_to_data_ratios = defaultdict(list)
 
-        extra_hidden_layers = list(
-            itertools.chain(
-                *[
-                    (
-                        layer
-                        for layer in (
-                            nn.Linear(hidden_layer_size, hidden_layer_size),
-                            (
-                                nn.BatchNorm1d(hidden_layer_size)
-                                if use_batch_norm
-                                else None
-                            ),
-                            nn.Tanh(),
-                        )
-                        if layer is not None
-                    )
-                    for _ in range(1, hidden_layer_count)
-                ]
-            )
-        )
-
-        model = nn.Sequential(
-            nn.Embedding(
-                embedding_dim=embedding_layer_size, num_embeddings=token_count
-            ),
-            nn.Flatten(),
-            nn.Linear(embedding_layer_size * block_size, hidden_layer_size),
-            nn.Tanh(),
-            *extra_hidden_layers,
-            nn.Linear(hidden_layer_size, token_count),
-        )
+        model = nn.Sequential(*layers)
         self.optimized_model = optimize
         if self.optimized_model:
             model = torch.compile(model, mode="reduce-overhead")
@@ -196,3 +166,76 @@ class WordTokenModelL(L.LightningModule):
 
     def on_train_end(self) -> None:
         self._save_update_data_ratio_plot()
+
+
+def build_word_token_mlp_model(
+    token_count: int,
+    block_size: int,
+    embedding_layer_size: int,
+    hidden_layer_size: int,
+    hidden_layer_count: int = 1,
+    use_batch_norm: bool = False,
+    lr: float = 0.1,
+    optimize: bool = True,
+) -> SequentialL:
+    assert hidden_layer_count > 0, "hidden_layer_count should be greater than 0"
+    extra_hidden_layers = list(
+        itertools.chain(
+            *[
+                (
+                    layer
+                    for layer in (
+                        nn.Linear(hidden_layer_size, hidden_layer_size),
+                        (nn.BatchNorm1d(hidden_layer_size) if use_batch_norm else None),
+                        nn.Tanh(),
+                    )
+                    if layer is not None
+                )
+                for _ in range(1, hidden_layer_count)
+            ]
+        )
+    )
+
+    layers = [
+        nn.Embedding(embedding_dim=embedding_layer_size, num_embeddings=token_count),
+        nn.Flatten(),
+        nn.Linear(embedding_layer_size * block_size, hidden_layer_size),
+        nn.Tanh(),
+        *extra_hidden_layers,
+        nn.Linear(hidden_layer_size, token_count),
+    ]
+    return SequentialL(layers, lr=lr, optimize=optimize)
+
+
+def build_word_token_wave_model(
+    token_count: int,
+    embedding_layer_size: int,
+    hidden_layer_size: int,
+    lr: float = 0.1,
+    optimize: bool = True,
+) -> SequentialL:
+    """
+    Build WaveNet like model word WordToken evaluation.
+    Note that this requires block size of 8!
+    """
+    layers = [
+        nn.Embedding(embedding_dim=embedding_layer_size, num_embeddings=token_count),
+        FlattenConsecutive(2),
+        nn.Linear(embedding_layer_size * 2, hidden_layer_size),
+        Permute((0, 2, 1)),
+        nn.BatchNorm1d(hidden_layer_size),
+        Permute((0, 2, 1)),
+        nn.Tanh(),
+        FlattenConsecutive(2),
+        nn.Linear(hidden_layer_size * 2, hidden_layer_size),
+        Permute((0, 2, 1)),
+        nn.BatchNorm1d(hidden_layer_size),
+        Permute((0, 2, 1)),
+        nn.Tanh(),
+        FlattenConsecutive(2),
+        nn.Linear(hidden_layer_size * 2, hidden_layer_size),
+        nn.BatchNorm1d(hidden_layer_size),
+        nn.Tanh(),
+        nn.Linear(hidden_layer_size, token_count),
+    ]
+    return SequentialL(layers, lr=lr, optimize=optimize)
