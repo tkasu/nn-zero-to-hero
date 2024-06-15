@@ -54,3 +54,7 @@ See `nn_zero_to_hero/notebooks/makemore_part2_mlp.ipynb`
 
 1. `poetry run python -m nn_zero_to_hero.nn_zero_to_hero.makemore_part5_wave`
 2. Inspect with Tensorboard `tensorboard --logdir db_logs`
+
+Hyperpameter tuning:
+
+1. `poetry run python -m nn_zero_to_hero.makemore_part5_wave_hyperparameter_tuning`

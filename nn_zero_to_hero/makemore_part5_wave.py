@@ -16,7 +16,7 @@ from nn_zero_to_hero.tokens import sample_from_model, tokens_to_int_mapping
 torch.set_float32_matmul_precision("high")  # Use TensorFloat32
 torch.backends.cuda.matmul.allow_tf32 = True
 
-BATCH_SIZE = 512
+BATCH_SIZE = 448
 BLOCK_SIZE = 8
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # DEVICE = torch.device("cpu")
@@ -25,8 +25,7 @@ LOSS_FUNC = F.cross_entropy
 
 
 @click.command()
-@click.option("--use-batch-norm", is_flag=True)
-def train(use_batch_norm: bool):
+def train():
     words = open("data/names.txt", "r").read().splitlines()
     chars = sorted(list(set("".join(words))))
     STOI, ITOS = tokens_to_int_mapping(chars)
@@ -49,17 +48,18 @@ def train(use_batch_norm: bool):
 
     model = build_word_token_wave_model(
         token_count=len(STOI),
-        embedding_layer_size=24,
-        hidden_layer_size=128,
+        embedding_layer_size=14,
+        hidden_layer_size=224,
+        lr=0.2,
     )
     print(model)
 
-    l_logger = TensorBoardLogger("db_logs", name="makemore_part2_mlp_lightning")
+    l_logger = TensorBoardLogger("db_logs", name="makemore_part5")
 
     trainer = L.Trainer(
         max_epochs=EPOCHS,
         accelerator="gpu",
-        callbacks=[EarlyStopping(monitor="val_loss", verbose=True, min_delta=0.0005)],
+        callbacks=[EarlyStopping(monitor="val_loss", verbose=True, min_delta=0.00001)],
         logger=l_logger,
     )
     trainer.fit(model, train_dataloader, validation_dataloader)

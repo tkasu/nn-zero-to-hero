@@ -65,12 +65,14 @@ class SequentialL(L.LightningModule):
         layers: List[nn.Module],
         lr: float = 0.1,
         optimize: bool = True,
+        logging: bool = True,
     ):
         super().__init__()
 
         self.lr = lr
         self.prev_epoch = None
         self.update_to_data_ratios = defaultdict(list)
+        self.logging = logging
 
         model = nn.Sequential(*layers)
         self.optimized_model = optimize
@@ -104,8 +106,8 @@ class SequentialL(L.LightningModule):
         return self.model(batch)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
-        # optimizer = SGDScheduleFree(self.model.parameters(), lr=self.lr)
+        # optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
+        optimizer = SGDScheduleFree(self.model.parameters(), lr=self.lr)
         return optimizer
 
     def _save_param_dist_plot(self):
@@ -153,19 +155,21 @@ class SequentialL(L.LightningModule):
                 )
 
     def on_before_optimizer_step(self, _optimizer):
-        self._update_ud_ratio()
+        if self.logging:
+            self._update_ud_ratio()
 
-        if self.current_epoch != self.prev_epoch:
-            self.prev_epoch = self.current_epoch
-            if self.current_epoch % 10 == 0:
-                self._save_grad_dist_plot()
+            if self.current_epoch != self.prev_epoch:
+                self.prev_epoch = self.current_epoch
+                if self.current_epoch % 10 == 0:
+                    self._save_grad_dist_plot()
 
     def on_train_epoch_end(self) -> None:
-        if self.current_epoch % 10 == 0:
+        if self.logging and self.current_epoch % 10 == 0:
             self._save_param_dist_plot()
 
     def on_train_end(self) -> None:
-        self._save_update_data_ratio_plot()
+        if self.logging:
+            self._save_update_data_ratio_plot()
 
 
 def build_word_token_mlp_model(
@@ -177,6 +181,7 @@ def build_word_token_mlp_model(
     use_batch_norm: bool = False,
     lr: float = 0.1,
     optimize: bool = True,
+    logging: bool = True,
 ) -> SequentialL:
     assert hidden_layer_count > 0, "hidden_layer_count should be greater than 0"
     extra_hidden_layers = list(
@@ -204,7 +209,7 @@ def build_word_token_mlp_model(
         *extra_hidden_layers,
         nn.Linear(hidden_layer_size, token_count),
     ]
-    return SequentialL(layers, lr=lr, optimize=optimize)
+    return SequentialL(layers, lr=lr, optimize=optimize, logging=logging)
 
 
 def build_word_token_wave_model(
@@ -213,6 +218,7 @@ def build_word_token_wave_model(
     hidden_layer_size: int,
     lr: float = 0.1,
     optimize: bool = True,
+    logging: bool = True,
 ) -> SequentialL:
     """
     Build WaveNet like model word WordToken evaluation.
@@ -238,4 +244,4 @@ def build_word_token_wave_model(
         nn.Tanh(),
         nn.Linear(hidden_layer_size, token_count),
     ]
-    return SequentialL(layers, lr=lr, optimize=optimize)
+    return SequentialL(layers, lr=lr, optimize=optimize, logging=logging)
